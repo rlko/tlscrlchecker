@@ -1,0 +1,37 @@
+global:
+  checkNewVersion: false
+  sendAnonymousUsage: false
+
+log:
+  level: DEBUG
+
+api:
+  dashboard: true
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: traefik_network
+  file:
+    directory: /config/dyn
+    watch: true
+
+entrypoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+certificatesResolvers:
+  letsenc:
+    acme:
+      httpchallenge:
+        entrypoint: web
+      caServer: https://acme-v02.api.letsencrypt.org/directory
+      email: "security@example.com"
+      storage: /letsencrypt/acme.json
+
+experimental:
+  localPlugins:
+    tlscrlchecker:
+      modulename: "github.com/miladbr/tlscrlchecker"

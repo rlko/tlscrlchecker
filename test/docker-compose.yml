@@ -1,0 +1,62 @@
+version: '3.9'
+services:
+
+  traefik:
+    image: traefik:v3.1
+    restart: unless-stopped
+    networks:
+      - t_nwk
+    command:
+      - "--configFile=/config/traefik_static.yml"
+      - "--experimental.localplugins.tlscrlchecker.modulename=github.com/miladbr/tlscrlchecker"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik_files/config:/config/:ro
+      - ./traefik_files/.htpasswd:/.htpasswd:ro
+      - ./traefik_files/cert:/cert/:ro
+      - ./pki:/pki/:ro
+      - ./letsencrypt:/letsencrypt
+      - ./traefik_files/plugins-local/tlscrlchecker:/plugins-local/src/github.com/miladbr/tlscrlchecker
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.middlewares.mw-auth-htpasswd.basicauth.usersfile=/.htpasswd"
+      - "traefik.http.middlewares.mw-auth-htpasswd.basicauth.realm=localhost"
+      - "traefik.http.routers.traefik-router.rule=Host(`mtls-proxy.example.com`)"
+      - "traefik.http.routers.traefik-router.entrypoints=web,websecure"
+      - "traefik.http.routers.traefik-router.tls=true"
+      - "traefik.http.routers.traefik-router.tls.certresolver=letsenc"
+      - "traefik.http.routers.traefik-router.service=api@internal"
+      - "traefik.http.routers.traefik-router.middlewares=mw-auth-htpasswd@docker"
+      - "traefik.http.middlewares.mw-cert.passtlsclientcert.pem=true"
+      - "traefik.http.middlewares.mw-cert.passtlsclientcert.info.sans=true"
+      - "traefik.http.middlewares.mw-cert.passtlsclientcert.info.subject.commonname=true"
+      - "traefik.http.middlewares.mw-cert.passtlsclientcert.info.subject.serialnumber=true"
+
+  whoami:
+    image: emilevauge/whoami
+    networks:
+      - t_nwk
+    labels:
+     - "traefik.enable=true"
+     - "traefik.http.routers.whoami-mtls.rule=Host(`public.example.com`)"
+     - "traefik.http.routers.whoami-mtls.entryPoints=websecure"
+     - "traefik.http.routers.whoami-mtls.tls=true"
+     - "traefik.http.routers.whoami-mtls.tls.certresolver=letsenc"
+     - "traefik.http.routers.whoami-mtls.tls.options=mtls-required@file"
+     - "traefik.http.routers.whoami-mtls.middlewares=my-tlscrlchecker@file,mw-cert@docker"
+     
+     - "traefik.http.routers.whoami-admin.rule=Host(`admin.example.com`)"
+     - "traefik.http.routers.whoami-admin.entryPoints=websecure"
+     - "traefik.http.routers.whoami-admin.tls=true"
+     - "traefik.http.routers.whoami-admin.tls.certresolver=letsenc"
+     - "traefik.http.routers.whoami-admin.tls.options=mtls-admin-panel@file"
+     - "traefik.http.routers.whoami-admin.middlewares=my-tlscrlchecker@file,mw-cert@docker"
+
+networks:
+  t_nwk:
+    external:
+      name: traefik_network
+
