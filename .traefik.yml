@@ -1,0 +1,6 @@
+displayName: TlsCrlChecker
+type: middleware
+import: "github.com/miladbr/tlscrlchecker"
+summary: Reject revoked client certificate based on CRL file.
+testData:
+  test: "test"
