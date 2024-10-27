@@ -1,3 +1,3 @@
-module github.com/miladbr/tlscrlchecker
+module github.com/Miladbr/tlscrlchecker
 
 go 1.23
