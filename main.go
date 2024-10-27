@@ -49,9 +49,7 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 		config: config,
 	}
 
-	if err := tc.loadCRL(); err != nil {
-		return nil, err
-	}
+	tc.loadCRL()
 
 	go tc.watchCRLFile()
 
@@ -68,8 +66,8 @@ func (tc *TLSCRLChecker) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	crlDataInterface := tc.crlData.Load()
 	if crlDataInterface == nil {
-		http.Error(w, "CRL data is not available.", http.StatusServiceUnavailable)
-		log.Println("CRL data is not available.")
+		log.Println("CRL data is not available. Proceeding without CRL checks.")
+		tc.next.ServeHTTP(w, r)
 		return
 	}
 	crlData := crlDataInterface.(*crlData)
@@ -111,15 +109,17 @@ func getCertificateSANs(cert *x509.Certificate) string {
 	return strings.Join(sans, ", ")
 }
 
-func (tc *TLSCRLChecker) loadCRL() error {
+func (tc *TLSCRLChecker) loadCRL() {
 	crlBytes, err := os.ReadFile(tc.config.CRLFilePath)
 	if err != nil {
-		return fmt.Errorf("failed to read CRL file: %w", err)
+		log.Printf("Failed to read CRL file at %s: %v", tc.config.CRLFilePath, err)
+		return
 	}
 
 	parsedCRL, err := x509.ParseRevocationList(crlBytes)
 	if err != nil {
-		return fmt.Errorf("failed to parse CRL: %w", err)
+		log.Printf("Failed to parse CRL file at %s: %v", tc.config.CRLFilePath, err)
+		return
 	}
 
 	revokedSerials := make(map[string]struct{}, len(parsedCRL.RevokedCertificates))
@@ -129,7 +129,8 @@ func (tc *TLSCRLChecker) loadCRL() error {
 
 	info, err := os.Stat(tc.config.CRLFilePath)
 	if err != nil {
-		return fmt.Errorf("failed to stat CRL file: %w", err)
+		log.Printf("Failed to stat CRL file at %s: %v", tc.config.CRLFilePath, err)
+		return
 	}
 
 	newCRLData := &crlData{
@@ -140,7 +141,6 @@ func (tc *TLSCRLChecker) loadCRL() error {
 
 	tc.crlData.Store(newCRLData)
 	log.Println("CRL file loaded successfully.")
-	return nil
 }
 
 func (tc *TLSCRLChecker) watchCRLFile() {
@@ -161,11 +161,7 @@ func (tc *TLSCRLChecker) watchCRLFile() {
 		}
 
 		if info.ModTime().After(lastModTime) {
-			if err := tc.loadCRL(); err != nil {
-				log.Printf("Error reloading CRL file: %v\n", err)
-			} else {
-				log.Println("CRL file reloaded successfully.")
-			}
+			tc.loadCRL()
 		}
 	}
 }
