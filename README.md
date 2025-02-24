@@ -1,4 +1,4 @@
-# CRL Based TLS Client Certificate Revokation Checker Traefik Plugin
+# CRL Based TLS Client Certificate Revocation Checker Traefik Plugin
 
 `tlscrlchecker` is a Traefik middleware plugin designed to enhance security by verifying the revocation status of client certificates. It uses a Certificate Revocation List (CRL) to ensure that any client certificates that have been revoked cannot access protected services.
 
@@ -14,5 +14,36 @@
 A sample is provided in the test folder. You can use it to test the plugin in a controlled environment.
 
 
+## Configuration
+
+### Static configuration
+```yaml
+experimental:
+  plugins:
+    tlscrlchecker:
+      moduleName: "github.com/Miladbr/tlscrlchecker"
+```
+
+### Dynamic configuration
+
+* TOML configuration
+
+```toml
+[http]
+[http.middlewares]
+  [http.middlewares.my-tlscrlchecker.plugin.tlscrlchecker]
+    crlFilePath = "/pki/crl/crl.pem" # Supports both PEM and DER formats
+```
+
+* YAML configuration
+
+```yaml
+http:
+  middlewares:
+    my-tlscrlchecker:
+      plugin:
+        tlscrlchecker:
+          crlFilePath: "/pki/crl/crl.pem" # Supports both PEM and DER formats
+```
 
 
