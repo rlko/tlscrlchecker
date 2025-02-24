@@ -3,6 +3,7 @@ package tlscrlchecker
 import (
 	"context"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"log"
 	"net/http"
@@ -116,7 +117,14 @@ func (tc *TLSCRLChecker) loadCRL() {
 		return
 	}
 
-	parsedCRL, err := x509.ParseRevocationList(crlBytes)
+        var parsedCRL *x509.RevocationList
+
+	block, _ := pem.Decode(crlBytes)
+	if block != nil && block.Type == "X509 CRL" {
+		parsedCRL, err = x509.ParseRevocationList(block.Bytes)
+	} else {
+		parsedCRL, err = x509.ParseRevocationList(crlBytes)
+	}
 	if err != nil {
 		log.Printf("Failed to parse CRL file at %s: %v", tc.config.CRLFilePath, err)
 		return
